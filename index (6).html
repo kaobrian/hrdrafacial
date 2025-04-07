@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>海菲秀真品驗證系統</title>
+  <style>
+    body {
+      font-family: "Noto Sans TC", sans-serif;
+      background-color: #f1f8f9;
+      margin: 0;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 30px 24px;
+      max-width: 480px;
+      margin: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      display: none;
+    }
+    .active { display: block; }
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin: 10px 0;
+    }
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      background-color: #009688;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 4px;
+    }
+    button:hover { background-color: #00796b; }
+    .status-success { font-size: 24px; color: #2e8b57; font-weight: bold; margin-bottom: 16px; }
+    .status-warning { font-size: 24px; color: #c9302c; font-weight: bold; margin-bottom: 16px; }
+    .info { font-size: 18px; margin: 10px 0; }
+    .highlight {
+      background-color: #e0f2f1;
+      padding: 6px 10px;
+      border-radius: 8px;
+      display: inline-block;
+      font-weight: 500;
+    }
+    .footer { font-size: 14px; color: #777; margin-top: 20px; }
+    .admin-toggle {
+      font-size: 14px;
+      color: #aaa;
+      cursor: pointer;
+      margin-top: 30px;
+      text-decoration: underline dotted;
+    }
+    .admin-toggle:hover { color: #009688; }
+  </style>
+</head>
+<body>
+
+<div class="card active" id="query-section">
+  <h2>🔧 海菲秀真品批號查詢</h2>
+  <input type="text" id="batchCode" placeholder="請輸入瓶身批號，如 A1B2C3D4" />
+  <button onclick="checkCode()">查詢</button>
+  <div id="input-error" style="color: #c9302c; margin-top: 10px;"></div>
+  <div class="footer">若有疑問請聯絡客服 LINE：@bpbpbio</div>
+  <div class="admin-toggle" onclick="showAdminLogin()">🔐 管理入口</div>
+</div>
+
+<div class="card" id="success-section">
+  <div class="status-success">✔ 真品驗證成功</div>
+  <div class="info"><span class="highlight">產品：</span><span id="product-name"></span></div>
+  <div class="info"><span class="highlight">批號：</span><span id="code-success"></span></div>
+  <div class="info"><span class="highlight">授權診所：</span><span id="clinic-name"></span></div>
+  <div class="info"><span class="highlight">出貨日期：</span><span id="ship-date"></span></div>
+  <div class="info"><span class="highlight">效期日期：</span><span id="expire-date"></span></div>
+  <div class="footer">📞 客服聯絡：LINE @bpbpbio</div>
+</div>
+
+<div class="card" id="notfound-section">
+  <div class="status-warning">❌ 查無此批號</div>
+  <div class="info">請確認您輸入的批號是否正確，或聯絡客服。</div>
+  <div class="footer">客服 LINE：@bpbpbio</div>
+</div>
+
+<div class="card" id="admin-login">
+  <h2>管理者登入</h2>
+  <input type="password" id="admin-password" placeholder="請輸入密碼" />
+  <button onclick="verifyAdmin()">登入</button>
+  <div class="footer">＊此區僅限授權人員使用</div>
+</div>
+
+<div class="card" id="admin-panel">
+  <h2>新增批號資料</h2>
+  <input type="text" id="newCode" placeholder="點擊產生批號" readonly onclick="generateBatchCode()" />
+  <input type="text" id="newProduct" placeholder="產品名稱" value="預設產品" />
+  <input type="text" id="newClinic" placeholder="診所名稱" value="預設診所" />
+  <input type="date" id="newDate" placeholder="出貨日期" />
+  <input type="date" id="newExpire" placeholder="效期日期" />
+  <button onclick="addNewBatchToSheet()">儲存批號資料</button>
+  <button onclick="goToQuery()">返回查詢頁面</button>
+  <div class="footer" id="save-result"></div>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbydXhA6VO6A81grupUaDTgVYtV-zainPu9J6e8IKxgN1fShrRv9xH8lGXbKh8yraFxs/exec';
+let existingCodes = new Set();
+
+function hideAll() {
+  document.querySelectorAll('.card').forEach(el => el.classList.remove("active"));
+}
+
+function goToQuery() {
+  hideAll();
+  document.getElementById("query-section").classList.add("active");
+}
+
+function checkCode(inputText) {
+  const input = (inputText || document.getElementById("batchCode").value).trim();
+  fetch(`${GAS_URL}?code=${input}`)
+    .then(res => res.json())
+    .then(match => {
+      hideAll();
+      if (match && match.length >= 5) {
+        document.getElementById("code-success").innerText = input;
+        document.getElementById("product-name").innerText = match[1];
+        document.getElementById("clinic-name").innerText = match[2];
+        document.getElementById("ship-date").innerText = match[3];
+        document.getElementById("expire-date").innerText = match[4];
+        document.getElementById("success-section").classList.add("active");
+      } else {
+        document.getElementById("notfound-section").classList.add("active");
+      }
+    });
+}
+
+function showAdminLogin() {
+  hideAll();
+  document.getElementById("admin-login").classList.add("active");
+}
+
+function verifyAdmin() {
+  const pw = document.getElementById("admin-password").value;
+  if (pw === "yourpassword123") {
+    hideAll();
+    document.getElementById("admin-panel").classList.add("active");
+  } else {
+    alert("密碼錯誤");
+  }
+}
+
+function generateBatchCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  document.getElementById("newCode").value = code;
+  existingCodes.add(code);
+}
+
+function addNewBatchToSheet() {
+  const code = document.getElementById("newCode").value.trim();
+  const product = document.getElementById("newProduct").value.trim();
+  const clinic = document.getElementById("newClinic").value.trim();
+  const date = document.getElementById("newDate").value;
+  const expire = document.getElementById("newExpire").value;
+
+  fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, product, clinic, date, expire })
+  })
+    .then(res => res.text())
+    .then(response => {
+      document.getElementById("save-result").innerText = `批號 ${code} 已新增成功！`;
+      document.getElementById("newProduct").value = "預設產品";
+      document.getElementById("newClinic").value = "預設診所";
+      document.getElementById("newDate").value = "";
+      document.getElementById("newExpire").value = "";
+    });
+}
+</script>
+</body>
+</html>
